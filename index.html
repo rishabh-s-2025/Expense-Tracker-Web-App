@@ -1,0 +1,444 @@
+<!DOCTYPE html> <!-- Tells the browser: this is a modern HTML5 webpage -->
+<html lang="en"> <!-- Root element of the page; lang="en" tells screen readers it's English -->
+<head> <!-- Invisible setup section — nothing in here is shown to the user -->
+  <meta charset="UTF-8" /> <!-- Allows special characters like $, £, emoji to display correctly -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Makes layout fit mobile screens properly -->
+  <title>Rishabh's Budget Tracker</title> <!-- Text shown on the browser tab -->
+
+  <style> <!-- Everything between these tags is CSS — controls how things look -->
+
+    *, *::before, *::after { /* The star * means: apply this to EVERY element on the page */
+      box-sizing: border-box; /* Makes width/height calculations include padding and border */
+      margin: 0;  /* Removes default outer spacing browsers add automatically */
+      padding: 0; /* Removes default inner spacing browsers add automatically */
+    }
+
+    body { /* Styles the entire page background and default text */
+      font-family: 'Segoe UI', system-ui, sans-serif; /* Sets the font — falls back if Segoe UI isn't available */
+      background: #0f172a; /* Dark navy background colour */
+      color: #e2e8f0;      /* Light grey text colour for everything */
+      min-height: 100vh;   /* Makes the page at least as tall as the screen */
+      display: flex;       /* Enables flexbox so we can centre content horizontally */
+      justify-content: center; /* Centres the app left-to-right */
+      padding: 2rem 1rem;  /* Adds breathing space around the edges */
+    }
+
+    .app { /* The main container that wraps all content */
+      width: 100%;       /* Takes full available width */
+      max-width: 600px;  /* But never wider than 600px — keeps it readable */
+    }
+
+    h1 { /* Styles the main title "Rishabh's Budget Tracker" */
+      font-size: 1.8rem;   /* Large text size */
+      font-weight: 700;    /* Bold */
+      color: #38bdf8;      /* Sky blue colour */
+      margin-bottom: 0.25rem; /* Small gap below the title */
+    }
+
+    .subtitle { /* Styles the grey description text below the title */
+      color: #94a3b8;        /* Muted grey colour */
+      font-size: 0.9rem;     /* Slightly smaller than normal text */
+      margin-bottom: 2rem;   /* Gap below before the summary cards */
+    }
+
+    .summary { /* The container holding the 3 stat cards */
+      display: grid;                      /* CSS Grid layout */
+      grid-template-columns: 1fr 1fr 1fr; /* 3 equal-width columns side by side */
+      gap: 1rem;           /* Space between each card */
+      margin-bottom: 2rem; /* Gap below the cards */
+    }
+
+    .card { /* Each individual stat card (Balance, Income, Expenses) */
+      background: #1e293b;     /* Dark blue-grey card background */
+      border-radius: 12px;     /* Rounded corners */
+      padding: 1rem 1.25rem;   /* Inner spacing */
+      border: 1px solid #334155; /* Subtle border around each card */
+    }
+
+    .card .label { /* The small text above the number e.g. "BALANCE" */
+      font-size: 0.75rem;         /* Small text */
+      color: #94a3b8;             /* Muted grey */
+      text-transform: uppercase;  /* Forces text to CAPS */
+      letter-spacing: 0.05em;     /* Adds spacing between letters */
+    }
+
+    .card .value { /* The big number in each card */
+      font-size: 1.5rem;    /* Large text */
+      font-weight: 700;     /* Bold */
+      margin-top: 0.25rem;  /* Small gap above the number */
+    }
+
+    .card.total   .value { color: #38bdf8; } /* Balance number is blue */
+    .card.income  .value { color: #4ade80; } /* Income number is green */
+    .card.expense .value { color: #f87171; } /* Expense number is red */
+
+    .form-card { /* The card containing the input form */
+      background: #1e293b;      /* Same dark card background */
+      border-radius: 12px;      /* Rounded corners */
+      padding: 1.5rem;          /* Inner spacing */
+      margin-bottom: 2rem;      /* Gap below before the transaction list */
+      border: 1px solid #334155; /* Subtle border */
+    }
+
+    .form-card h2 { /* "Add Transaction" heading inside the form */
+      font-size: 1rem;      /* Normal size */
+      font-weight: 600;     /* Semi-bold */
+      margin-bottom: 1rem;  /* Gap below the heading */
+      color: #cbd5e1;       /* Light grey */
+    }
+
+    .form-grid { /* Layout for side-by-side input pairs */
+      display: grid;                  /* CSS Grid */
+      grid-template-columns: 1fr 1fr; /* 2 equal columns */
+      gap: 0.75rem;       /* Space between the two inputs */
+      margin-bottom: 0.75rem; /* Gap below each row */
+    }
+
+    .form-grid input,
+    .form-grid select,
+    .full-width input { /* Styles all input boxes and dropdowns */
+      width: 100%;                /* Takes full column width */
+      padding: 0.6rem 0.875rem;   /* Inner spacing so text doesn't hug the edges */
+      border-radius: 8px;         /* Rounded corners */
+      border: 1px solid #334155;  /* Dark border */
+      background: #0f172a;        /* Very dark background — same as page */
+      color: #e2e8f0;             /* Light text so you can read what you type */
+      font-size: 0.9rem;          /* Slightly small text */
+      outline: none;              /* Removes the default blue browser outline on click */
+      transition: border-color 0.2s; /* Smoothly animates border colour on focus */
+    }
+
+    .form-grid input:focus,
+    .form-grid select:focus,
+    .full-width input:focus { border-color: #38bdf8; } /* Border turns blue when you click into an input */
+
+    .full-width { margin-bottom: 0.75rem; } /* Gap below the full-width description input */
+
+    button { /* Styles the main Add Transaction button */
+      width: 100%;         /* Full width of its container */
+      padding: 0.7rem;     /* Inner spacing */
+      background: #38bdf8; /* Sky blue background */
+      color: #0f172a;      /* Dark text on the blue button */
+      font-weight: 700;    /* Bold text */
+      border: none;        /* Removes default button border */
+      border-radius: 8px;  /* Rounded corners */
+      cursor: pointer;     /* Shows hand cursor when hovering */
+      font-size: 0.95rem;  /* Normal-ish text size */
+      transition: background 0.2s; /* Smoothly changes colour on hover */
+    }
+
+    button:hover { background: #7dd3fc; } /* Lighter blue when you hover over the button */
+
+    .list-header { /* Container for "Transactions" heading and "Clear All" button */
+      display: flex;              /* Side by side layout */
+      justify-content: space-between; /* Pushes heading left, button right */
+      align-items: center;        /* Vertically centres both */
+      margin-bottom: 0.75rem;     /* Gap below */
+    }
+
+    .list-header h2 { /* "Transactions" heading above the list */
+      font-size: 1rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    .clear-btn { /* Override styles for the "Clear All" button only */
+      width: auto;            /* Shrinks to fit its text (overrides button's width:100%) */
+      padding: 0.3rem 0.75rem; /* Smaller padding than the main button */
+      background: transparent; /* No fill — just an outline */
+      color: #f87171;          /* Red text */
+      border: 1px solid #f87171; /* Red border */
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .clear-btn:hover { background: #f87171; color: #fff; } /* Fills red on hover */
+
+    .empty-state { /* The "No transactions yet" message when list is empty */
+      text-align: center;
+      color: #475569;  /* Muted grey */
+      padding: 3rem 0; /* Large vertical spacing */
+      font-size: 0.9rem;
+    }
+
+    .transaction { /* Each individual transaction row in the list */
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 0.875rem 1rem;
+      display: flex;               /* Side-by-side layout for icon, text, amount */
+      align-items: center;         /* Vertically centres everything */
+      justify-content: space-between; /* Pushes amount to far right */
+      margin-bottom: 0.6rem;       /* Gap between each row */
+      border: 1px solid #334155;
+      animation: slideIn 0.2s ease; /* Plays the slideIn animation when a row appears */
+    }
+
+    @keyframes slideIn { /* Defines the slide-in animation */
+      from { opacity: 0; transform: translateY(-8px); } /* Starts invisible and 8px above */
+      to   { opacity: 1; transform: translateY(0); }    /* Fades in to normal position */
+    }
+
+    .tx-left { /* Left side of each transaction: icon + description */
+      display: flex;
+      align-items: center;
+      gap: 0.75rem; /* Space between the icon and text */
+    }
+
+    .tx-icon { /* The coloured emoji icon on the left of each transaction */
+      width: 36px; height: 36px;
+      border-radius: 8px;     /* Rounded square shape */
+      display: flex; align-items: center; justify-content: center; /* Centres the emoji */
+      font-size: 1rem;
+    }
+
+    .tx-icon.income  { background: #052e16; } /* Dark green background for income icons */
+    .tx-icon.expense { background: #450a0a; } /* Dark red background for expense icons */
+
+    .tx-desc { /* The description text e.g. "Bubble Tea" */
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .tx-meta { /* The smaller grey text below: category and date */
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 1px;
+    }
+
+    .tx-amount { /* The SGD amount on the right */
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .tx-amount.income  { color: #4ade80; } /* Green for income amounts */
+    .tx-amount.expense { color: #f87171; } /* Red for expense amounts */
+
+    .delete-btn { /* The small X button to delete a transaction */
+      width: 28px; height: 28px;
+      background: transparent;
+      color: #475569;    /* Grey X by default */
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 6px;
+      margin-left: 0.5rem;
+      padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .delete-btn:hover { color: #f87171; background: #1e293b; } /* Turns red on hover */
+
+  </style>
+</head>
+
+<body>
+<div class="app"> <!-- Main wrapper — everything lives inside here -->
+
+  <h1>💸 Rishabh's Budget Tracker</h1> <!-- Page title -->
+  <p class="subtitle">Track your income and expenses in one place</p> <!-- Subtitle below title -->
+
+  <!-- SUMMARY CARDS — the 3 stat boxes at the top -->
+  <div class="summary">
+    <div class="card total">
+      <div class="label">Balance</div> <!-- Card label text -->
+      <div class="value" id="balance">SGD 0.00</div> <!-- id="balance" lets JavaScript update this number -->
+    </div>
+    <div class="card income">
+      <div class="label">Income</div>
+      <div class="value" id="total-income">SGD 0.00</div> <!-- JavaScript writes the income total here -->
+    </div>
+    <div class="card expense">
+      <div class="label">Expenses</div>
+      <div class="value" id="total-expense">SGD 0.00</div> <!-- JavaScript writes the expense total here -->
+    </div>
+  </div>
+
+  <!-- INPUT FORM — where the user enters a new transaction -->
+  <div class="form-card">
+    <h2>Add Transaction</h2>
+
+    <div class="full-width">
+      <!-- Text input for what the transaction was e.g. "Bubble Tea" -->
+      <input type="text" id="desc" placeholder="Description (e.g. Bubble Tea, Grab, Salary)" />
+    </div>
+
+    <div class="form-grid">
+      <!-- Number input for how much — min=0 prevents negative values -->
+      <input type="number" id="amount" placeholder="Amount (SGD)" step="0.01" min="0" />
+      <!-- Dropdown to choose between Expense or Income -->
+      <select id="type">
+        <option value="expense">Expense</option>
+        <option value="income">Income</option>
+      </select>
+    </div>
+
+    <div class="form-grid">
+      <!-- Dropdown for the spending category — Singapore-specific -->
+      <select id="category">
+        <option value="🧋 Bubble Tea">🧋 Bubble Tea</option>
+        <option value="🚗 Grab / Transport">🚗 Grab / Transport</option>
+        <option value="🍜 Food">🍜 Food</option>
+        <option value="📚 Education">📚 Education</option>
+        <option value="🎮 Entertainment">🎮 Entertainment</option>
+        <option value="💼 Salary / Allowance">💼 Salary / Allowance</option>
+        <option value="🏠 Housing">🏠 Housing</option>
+        <option value="🛒 Shopping">🛒 Shopping</option>
+        <option value="💊 Health">💊 Health</option>
+        <option value="📦 Other">📦 Other</option>
+      </select>
+      <!-- Date picker — defaults to today via JavaScript below -->
+      <input type="date" id="date" />
+    </div>
+
+    <!-- Clicking this button calls the addTransaction() JavaScript function -->
+    <button onclick="addTransaction()">+ Add Transaction</button>
+  </div>
+
+  <!-- TRANSACTION LIST — all past transactions appear here -->
+  <div>
+    <div class="list-header">
+      <h2>Transactions</h2>
+      <!-- Clicking this calls clearAll() to wipe all transactions -->
+      <button class="clear-btn" onclick="clearAll()">Clear All</button>
+    </div>
+    <div id="list"></div> <!-- JavaScript fills this div with transaction rows -->
+  </div>
+
+</div> <!-- end .app -->
+
+<script> /* Everything below is JavaScript — the logic that makes the app work */
+
+  /* Load saved transactions from localStorage, or start with an empty array */
+  let transactions = JSON.parse(localStorage.getItem("transactions") || "[]");
+
+  /* Set the date input to today's date automatically when page loads */
+  document.getElementById("date").valueAsDate = new Date();
+
+  /* render() redraws the entire screen whenever data changes */
+  function render() {
+    const list = document.getElementById("list"); /* Gets the div where transaction rows go */
+
+    let income = 0, expense = 0; /* Start both totals at zero */
+
+    /* Loop through every transaction and add to the right total */
+    transactions.forEach(t => {
+      if (t.type === "income") income += t.amount; /* Add to income if it's an income */
+      else expense += t.amount;                    /* Otherwise add to expense */
+    });
+
+    const balance = income - expense; /* Balance = total income minus total expenses */
+
+    /* Update the 3 summary cards with the calculated numbers */
+    document.getElementById("balance").textContent = formatCurrency(balance);
+    document.getElementById("balance").style.color = balance >= 0 ? "#38bdf8" : "#f87171"; /* Blue if positive, red if negative */
+    document.getElementById("total-income").textContent  = formatCurrency(income);
+    document.getElementById("total-expense").textContent = formatCurrency(expense);
+
+    /* If no transactions exist, show the empty state message and stop */
+    if (transactions.length === 0) {
+      list.innerHTML = '<p class="empty-state">No transactions yet. Add one above!</p>';
+      return; /* Exits the function early — nothing else to render */
+    }
+
+    /* Build HTML for each transaction row and inject it into the list div */
+    list.innerHTML = [...transactions] /* Copy the array so we don't modify the original */
+      .reverse() /* Newest transactions appear at the top */
+      .map(t => ` <!-- For each transaction, build this HTML string -->
+        <div class="transaction">
+          <div class="tx-left">
+            <!-- Split category by space, take first part which is the emoji -->
+            <div class="tx-icon ${t.type}">${t.category.split(" ")[0]}</div>
+            <div>
+              <div class="tx-desc">${escapeHtml(t.desc)}</div> <!-- Description text -->
+              <div class="tx-meta">${t.category.slice(2)} · ${formatDate(t.date)}</div> <!-- Category name + date -->
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <!-- Show + for income, − for expense before the amount -->
+            <span class="tx-amount ${t.type}">
+              ${t.type === "income" ? "+" : "−"}${formatCurrency(t.amount)}
+            </span>
+            <!-- Delete button passes this transaction's unique id to deleteTransaction() -->
+            <button class="delete-btn" onclick="deleteTransaction('${t.id}')" title="Delete">✕</button>
+          </div>
+        </div>
+      `).join(""); /* .join("") combines all the HTML strings into one big string */
+  }
+
+  /* addTransaction() runs when the user clicks the Add button */
+  function addTransaction() {
+    const desc     = document.getElementById("desc").value.trim();     /* Read description, remove extra spaces */
+    const amount   = parseFloat(document.getElementById("amount").value); /* Read amount as a decimal number */
+    const type     = document.getElementById("type").value;            /* Read "income" or "expense" */
+    const category = document.getElementById("category").value;        /* Read the selected category */
+    const date     = document.getElementById("date").value;            /* Read the selected date */
+
+    if (!desc)                  { alert("Please enter a description."); return; } /* Stop if description is empty */
+    if (!amount || amount <= 0) { alert("Please enter a valid amount."); return; } /* Stop if amount is invalid */
+
+    /* Build a transaction object and add it to the array */
+    transactions.push({
+      id: Date.now().toString(), /* Unique ID based on current timestamp — always different */
+      desc, amount, type, category, date /* Shorthand for desc: desc, amount: amount, etc. */
+    });
+
+    save(); /* Save to localStorage and redraw the screen */
+
+    /* Clear the form inputs so the user can add another transaction */
+    document.getElementById("desc").value   = "";
+    document.getElementById("amount").value = "";
+    document.getElementById("date").valueAsDate = new Date(); /* Reset date back to today */
+  }
+
+  /* deleteTransaction() runs when the user clicks the X on a transaction */
+  function deleteTransaction(id) {
+    /* .filter() creates a NEW array keeping only transactions that do NOT match the deleted id */
+    transactions = transactions.filter(t => t.id !== id);
+    save(); /* Save the updated array and redraw */
+  }
+
+  /* clearAll() runs when the user clicks "Clear All" */
+  function clearAll() {
+    if (transactions.length === 0) return; /* Do nothing if already empty */
+    if (confirm("Clear all transactions?")) { /* Ask the user to confirm first */
+      transactions = []; /* Empty the array */
+      save();
+    }
+  }
+
+  /* save() writes to localStorage and triggers a re-render */
+  function save() {
+    localStorage.setItem("transactions", JSON.stringify(transactions)); /* Convert array to text and save */
+    render(); /* Redraw the screen with updated data */
+  }
+
+  /* formatCurrency() turns a number like 1234.5 into "SGD 1,234.50" */
+  function formatCurrency(n) {
+    return "SGD " + Math.abs(n)   /* Math.abs removes any minus sign — we handle +/− separately */
+      .toFixed(2)                 /* Always show 2 decimal places e.g. 5 becomes 5.00 */
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ","); /* Regex that inserts commas every 3 digits */
+  }
+
+  /* formatDate() turns "2026-03-31" into "31 Mar 2026" */
+  function formatDate(dateStr) {
+    if (!dateStr) return ""; /* Return empty string if no date was provided */
+    const d = new Date(dateStr + "T00:00:00"); /* Create a Date object — T00:00:00 prevents timezone issues */
+    return d.toLocaleDateString("en-SG", { /* Format using Singapore locale */
+      month: "short", day: "numeric", year: "numeric"
+    });
+  }
+
+  /* escapeHtml() prevents malicious code from being injected via the description field */
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")  /* & becomes &amp; */
+      .replace(/</g, "&lt;")   /* < becomes &lt; so it doesn't start an HTML tag */
+      .replace(/>/g, "&gt;");  /* > becomes &gt; */
+  }
+
+  render(); /* Run render() once when the page first loads to show any saved transactions */
+
+</script>
+</body>
+</html>
