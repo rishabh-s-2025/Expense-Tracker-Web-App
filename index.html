@@ -524,7 +524,7 @@ let budgets = JSON.parse(localStorage.getItem('bgt-budgets') || JSON.stringify({
   '🏠 Housing / Rent':   1200,
   '🛒 Shopping':         200,
   '💊 Health':           100,
-  '✈️ Travel':           300,
+  '🧳 Travel':           300,
   '📦 Other':            150,
 }));
 
@@ -538,7 +538,7 @@ let txFilter = 'all';
 const EXPENSE_CATS = [
   '🧋 Bubble Tea', '🚗 Grab / Transport', '🍜 Food & Dining',
   '📚 Education',  '🎮 Entertainment',    '🏠 Housing / Rent',
-  '🛒 Shopping',   '💊 Health',           '✈️ Travel', '📦 Other'
+  '🛒 Shopping',   '💊 Health',           '🧳 Travel', '📦 Other'
 ];
 const INCOME_CATS = [
   '💼 Salary / Allowance', '💰 Freelance', '🎁 Bonus',
@@ -930,7 +930,7 @@ function fmtDate(dateStr) {
 }
 
 /* escHtml() prevents XSS injection via the description field */
-/* If someone types <script>alert('hack')</script>, this makes it safe text */
+/* If someone types a script tag, this makes it safe text */
 function escHtml(str) {
   return str
     .replace(/&/g, '&amp;')  /* & becomes &amp; */
