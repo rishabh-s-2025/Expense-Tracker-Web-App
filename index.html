@@ -154,7 +154,7 @@
     /* ── ADD TRANSACTION FORM ───────────────────────── */
     .form-row { /* A row containing two side-by-side inputs */
       display: grid;
-      grid-template-columns: 1fr 1fr; /* Two equal columns */
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* Two equal columns that can shrink */
       gap: 0.65rem;
       margin-bottom: 0.65rem;
       min-width: 0;
