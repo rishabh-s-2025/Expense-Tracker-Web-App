@@ -330,7 +330,7 @@
     const balance = income - expense; /* Balance = total income minus total expenses */
 
     /* Update the 3 summary cards with the calculated numbers */
-    document.getElementById("balance").textContent = formatCurrency(balance);
+    document.getElementById("balance").textContent = (balance < 0 ? "−" : "") + formatCurrency(balance);
     document.getElementById("balance").style.color = balance >= 0 ? "#38bdf8" : "#f87171"; /* Blue if positive, red if negative */
     document.getElementById("total-income").textContent  = formatCurrency(income);
     document.getElementById("total-expense").textContent = formatCurrency(expense);
