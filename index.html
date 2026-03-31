@@ -1,443 +1,942 @@
-<!DOCTYPE html> <!-- Tells the browser: this is a modern HTML5 webpage -->
-<html lang="en"> <!-- Root element of the page; lang="en" tells screen readers it's English -->
-<head> <!-- Invisible setup section — nothing in here is shown to the user -->
-  <meta charset="UTF-8" /> <!-- Allows special characters like $, £, emoji to display correctly -->
+<!DOCTYPE html> <!-- Tells the browser this is a modern HTML5 document -->
+<html lang="en"> <!-- Root element; lang="en" tells screen readers it's English -->
+<head> <!-- Invisible setup section — nothing here is shown to the user -->
+  <meta charset="UTF-8" /> <!-- Allows emoji, $, special characters to display correctly -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Makes layout fit mobile screens properly -->
   <title>Rishabh's Budget Tracker</title> <!-- Text shown on the browser tab -->
 
+  <!-- Chart.js loaded from CDN — gives us the donut chart without writing it from scratch -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
   <style> <!-- Everything between these tags is CSS — controls how things look -->
 
-    *, *::before, *::after { /* The star * means: apply this to EVERY element on the page */
-      box-sizing: border-box; /* Makes width/height calculations include padding and border */
+    *, *::before, *::after { /* Star * means: apply this to EVERY element on the page */
+      box-sizing: border-box; /* Width/height includes padding — prevents elements overflowing */
       margin: 0;  /* Removes default outer spacing browsers add automatically */
       padding: 0; /* Removes default inner spacing browsers add automatically */
     }
 
-    body { /* Styles the entire page background and default text */
-      font-family: 'Segoe UI', system-ui, sans-serif; /* Sets the font — falls back if Segoe UI isn't available */
-      background: #0f172a; /* Dark navy background colour */
-      color: #e2e8f0;      /* Light grey text colour for everything */
-      min-height: 100vh;   /* Makes the page at least as tall as the screen */
-      display: flex;       /* Enables flexbox so we can centre content horizontally */
-      justify-content: center; /* Centres the app left-to-right */
-      padding: 2rem 1rem;  /* Adds breathing space around the edges */
+    :root { /* CSS variables — define colours once here, reuse them everywhere below */
+      --bg:       #0a0f1e; /* Darkest background — the page itself */
+      --surface:  #111827; /* Card background colour */
+      --surface2: #1a2234; /* Slightly lighter — used for inputs and transaction rows */
+      --border:   #1f2d45; /* Subtle border colour around cards */
+      --text:     #e2e8f0; /* Main text colour — light grey */
+      --muted:    #64748b; /* Secondary label text — darker grey */
+      --blue:     #3b82f6; /* Primary accent — buttons, highlights */
+      --green:    #22c55e; /* Income colour */
+      --red:      #ef4444; /* Expense / danger colour */
+      --amber:    #f59e0b; /* Warning colour — budget nearly full */
+      --purple:   #8b5cf6; /* Savings rate colour */
     }
 
-    .app { /* The main container that wraps all content */
-      width: 100%;       /* Takes full available width */
-      max-width: 600px;  /* But never wider than 600px — keeps it readable */
+    body { /* Base styles applied to the entire page */
+      font-family: 'Segoe UI', system-ui, sans-serif; /* Font — falls back to system font if unavailable */
+      background: var(--bg); /* Uses the --bg variable defined in :root above */
+      color: var(--text);    /* Default text colour for all elements */
+      min-height: 100vh;     /* Page is at least as tall as the screen */
+      padding: 1.5rem 1rem;  /* Breathing space around the edges */
     }
 
-    h1 { /* Styles the main title "Rishabh's Budget Tracker" */
-      font-size: 1.8rem;   /* Large text size */
-      font-weight: 700;    /* Bold */
-      color: #38bdf8;      /* Sky blue colour */
-      margin-bottom: 0.25rem; /* Small gap below the title */
+    .container { /* Wrapper that limits content width and centres it on wide screens */
+      max-width: 960px; /* Never wider than 960px */
+      margin: 0 auto;   /* auto left+right margin centres it horizontally */
     }
 
-    .subtitle { /* Styles the grey description text below the title */
-      color: #94a3b8;        /* Muted grey colour */
-      font-size: 0.9rem;     /* Slightly smaller than normal text */
-      margin-bottom: 2rem;   /* Gap below before the summary cards */
+    /* ── HEADER ─────────────────────────────────────── */
+    .header { /* Row containing title on left and month nav on right */
+      display: flex;
+      justify-content: space-between; /* Pushes title left, month nav right */
+      align-items: flex-start;
+      margin-bottom: 1.75rem;
+      flex-wrap: wrap; /* Wraps to next line on small screens */
+      gap: 1rem;
     }
+    .header h1 { font-size: 1.6rem; font-weight: 700; color: var(--blue); }
+    .header p  { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
 
-    .summary { /* The container holding the 3 stat cards */
-      display: grid;                      /* CSS Grid layout */
-      grid-template-columns: 1fr 1fr 1fr; /* 3 equal-width columns side by side */
-      gap: 1rem;           /* Space between each card */
-      margin-bottom: 2rem; /* Gap below the cards */
-    }
-
-    .card { /* Each individual stat card (Balance, Income, Expenses) */
-      background: #1e293b;     /* Dark blue-grey card background */
-      border-radius: 12px;     /* Rounded corners */
-      padding: 1rem 1.25rem;   /* Inner spacing */
-      border: 1px solid #334155; /* Subtle border around each card */
-    }
-
-    .card .label { /* The small text above the number e.g. "BALANCE" */
-      font-size: 0.75rem;         /* Small text */
-      color: #94a3b8;             /* Muted grey */
-      text-transform: uppercase;  /* Forces text to CAPS */
-      letter-spacing: 0.05em;     /* Adds spacing between letters */
-    }
-
-    .card .value { /* The big number in each card */
-      font-size: 1.5rem;    /* Large text */
-      font-weight: 700;     /* Bold */
-      margin-top: 0.25rem;  /* Small gap above the number */
-    }
-
-    .card.total   .value { color: #38bdf8; } /* Balance number is blue */
-    .card.income  .value { color: #4ade80; } /* Income number is green */
-    .card.expense .value { color: #f87171; } /* Expense number is red */
-
-    .form-card { /* The card containing the input form */
-      background: #1e293b;      /* Same dark card background */
-      border-radius: 12px;      /* Rounded corners */
-      padding: 1.5rem;          /* Inner spacing */
-      margin-bottom: 2rem;      /* Gap below before the transaction list */
-      border: 1px solid #334155; /* Subtle border */
-    }
-
-    .form-card h2 { /* "Add Transaction" heading inside the form */
-      font-size: 1rem;      /* Normal size */
-      font-weight: 600;     /* Semi-bold */
-      margin-bottom: 1rem;  /* Gap below the heading */
-      color: #cbd5e1;       /* Light grey */
-    }
-
-    .form-grid { /* Layout for side-by-side input pairs */
-      display: grid;                  /* CSS Grid */
-      grid-template-columns: 1fr 1fr; /* 2 equal columns */
-      gap: 0.75rem;       /* Space between the two inputs */
-      margin-bottom: 0.75rem; /* Gap below each row */
-    }
-
-    .form-grid input,
-    .form-grid select,
-    .full-width input { /* Styles all input boxes and dropdowns */
-      width: 100%;                /* Takes full column width */
-      padding: 0.6rem 0.875rem;   /* Inner spacing so text doesn't hug the edges */
-      border-radius: 8px;         /* Rounded corners */
-      border: 1px solid #334155;  /* Dark border */
-      background: #0f172a;        /* Very dark background — same as page */
-      color: #e2e8f0;             /* Light text so you can read what you type */
-      font-size: 0.9rem;          /* Slightly small text */
-      outline: none;              /* Removes the default blue browser outline on click */
-      transition: border-color 0.2s; /* Smoothly animates border colour on focus */
-    }
-
-    .form-grid input:focus,
-    .form-grid select:focus,
-    .full-width input:focus { border-color: #38bdf8; } /* Border turns blue when you click into an input */
-
-    .full-width { margin-bottom: 0.75rem; } /* Gap below the full-width description input */
-
-    button { /* Styles the main Add Transaction button */
-      width: 100%;         /* Full width of its container */
-      padding: 0.7rem;     /* Inner spacing */
-      background: #38bdf8; /* Sky blue background */
-      color: #0f172a;      /* Dark text on the blue button */
-      font-weight: 700;    /* Bold text */
-      border: none;        /* Removes default button border */
-      border-radius: 8px;  /* Rounded corners */
-      cursor: pointer;     /* Shows hand cursor when hovering */
-      font-size: 0.95rem;  /* Normal-ish text size */
-      transition: background 0.2s; /* Smoothly changes colour on hover */
-    }
-
-    button:hover { background: #7dd3fc; } /* Lighter blue when you hover over the button */
-
-    .list-header { /* Container for "Transactions" heading and "Clear All" button */
-      display: flex;              /* Side by side layout */
-      justify-content: space-between; /* Pushes heading left, button right */
-      align-items: center;        /* Vertically centres both */
-      margin-bottom: 0.75rem;     /* Gap below */
-    }
-
-    .list-header h2 { /* "Transactions" heading above the list */
-      font-size: 1rem;
-      font-weight: 600;
-      color: #cbd5e1;
-    }
-
-    .clear-btn { /* Override styles for the "Clear All" button only */
-      width: auto;            /* Shrinks to fit its text (overrides button's width:100%) */
-      padding: 0.3rem 0.75rem; /* Smaller padding than the main button */
-      background: transparent; /* No fill — just an outline */
-      color: #f87171;          /* Red text */
-      border: 1px solid #f87171; /* Red border */
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .clear-btn:hover { background: #f87171; color: #fff; } /* Fills red on hover */
-
-    .empty-state { /* The "No transactions yet" message when list is empty */
-      text-align: center;
-      color: #475569;  /* Muted grey */
-      padding: 3rem 0; /* Large vertical spacing */
-      font-size: 0.9rem;
-    }
-
-    .transaction { /* Each individual transaction row in the list */
-      background: #1e293b;
-      border-radius: 10px;
-      padding: 0.875rem 1rem;
-      display: flex;               /* Side-by-side layout for icon, text, amount */
-      align-items: center;         /* Vertically centres everything */
-      justify-content: space-between; /* Pushes amount to far right */
-      margin-bottom: 0.6rem;       /* Gap between each row */
-      border: 1px solid #334155;
-      animation: slideIn 0.2s ease; /* Plays the slideIn animation when a row appears */
-    }
-
-    @keyframes slideIn { /* Defines the slide-in animation */
-      from { opacity: 0; transform: translateY(-8px); } /* Starts invisible and 8px above */
-      to   { opacity: 1; transform: translateY(0); }    /* Fades in to normal position */
-    }
-
-    .tx-left { /* Left side of each transaction: icon + description */
+    .month-nav { /* The left/right arrow month switcher pill */
       display: flex;
       align-items: center;
-      gap: 0.75rem; /* Space between the icon and text */
+      gap: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.5rem 0.875rem;
+    }
+    .month-nav button { /* The < and > arrow buttons */
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer; /* Shows hand cursor on hover */
+      width: auto;
+      padding: 0;
+      line-height: 1;
+    }
+    .month-nav button:hover { color: var(--text); } /* Brightens arrow on hover */
+    .month-nav span { /* The "March 2026" text in the middle */
+      font-weight: 600;
+      font-size: 0.95rem;
+      min-width: 120px;   /* Fixed width prevents layout jumping between months */
+      text-align: center;
     }
 
-    .tx-icon { /* The coloured emoji icon on the left of each transaction */
-      width: 36px; height: 36px;
-      border-radius: 8px;     /* Rounded square shape */
-      display: flex; align-items: center; justify-content: center; /* Centres the emoji */
-      font-size: 1rem;
+    /* ── TOP STAT CARDS ─────────────────────────────── */
+    .stats-grid { /* Container for the 4 summary cards */
+      display: grid;
+      grid-template-columns: repeat(4, 1fr); /* 4 equal columns side by side */
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 700px) { /* On small screens, switch to 2 columns */
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
-    .tx-icon.income  { background: #052e16; } /* Dark green background for income icons */
-    .tx-icon.expense { background: #450a0a; } /* Dark red background for expense icons */
+    .stat-card { /* Each individual summary card */
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+    }
+    .stat-card .s-label { /* Small uppercase label e.g. "NET BALANCE" */
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    .stat-card .s-value { /* The big number inside each stat card */
+      font-size: 1.4rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-card .s-sub { /* Small text below the number e.g. "3 transactions" */
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
 
-    .tx-desc { /* The description text e.g. "Bubble Tea" */
+    /* Colour utility classes — applied to elements to set text colour */
+    .c-blue   { color: var(--blue); }
+    .c-green  { color: var(--green); }
+    .c-red    { color: var(--red); }
+    .c-amber  { color: var(--amber); }
+    .c-purple { color: var(--purple); }
+
+    /* ── MAIN TWO-COLUMN LAYOUT ─────────────────────── */
+    .main-grid { /* Left column (form + list) and right column (chart + budgets) */
+      display: grid;
+      grid-template-columns: 1fr 320px; /* Left takes remaining space, right fixed 320px */
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 800px) { /* Stack into single column on small screens */
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── CARD COMPONENT ─────────────────────────────── */
+    .card { /* Reusable card style used throughout the page */
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+    }
+    .card-title { /* Small uppercase section heading inside each card */
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+      font-weight: 600;
+    }
+
+    /* ── ADD TRANSACTION FORM ───────────────────────── */
+    .form-row { /* A row containing two side-by-side inputs */
+      display: grid;
+      grid-template-columns: 1fr 1fr; /* Two equal columns */
+      gap: 0.65rem;
+      margin-bottom: 0.65rem;
+    }
+    .form-row.full { grid-template-columns: 1fr; } /* Override: single full-width column */
+
+    input, select { /* Styles all input boxes and dropdowns */
+      width: 100%;
+      padding: 0.6rem 0.875rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2); /* Slightly lighter than card */
+      color: var(--text);
+      font-size: 0.875rem;
+      outline: none; /* Removes default blue browser outline on focus */
+      transition: border-color .2s; /* Smooth animation when border changes */
+    }
+    input:focus, select:focus { border-color: var(--blue); } /* Blue border when clicked into */
+    input::placeholder { color: var(--muted); } /* Placeholder text is muted grey */
+    select option { background: var(--surface2); } /* Dropdown options match dark theme */
+
+    .add-btn { /* The main "+ Add Transaction" button */
+      width: 100%;
+      padding: 0.7rem;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
       font-size: 0.9rem;
-      font-weight: 500;
+      transition: background .2s;
+      margin-top: 0.25rem;
+    }
+    .add-btn:hover { background: #2563eb; } /* Darker blue on hover */
+
+    /* ── BUDGET PROGRESS BARS ───────────────────────── */
+    .budget-item { margin-bottom: 1rem; } /* Each category budget row */
+    .budget-item:last-child { margin-bottom: 0; } /* No extra space after last item */
+    .budget-row { /* Label and SGD amounts on the same line */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+    .budget-name { font-size: 0.82rem; display: flex; align-items: center; gap: 0.4rem; }
+    .budget-amounts { font-size: 0.75rem; color: var(--muted); }
+    .budget-amounts span { font-weight: 600; }
+
+    .progress-bar { /* The grey track behind the coloured fill */
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 3px;
+      overflow: hidden; /* Clips fill so it doesn't go outside the track */
+    }
+    .progress-fill { /* The coloured fill — width set dynamically by JavaScript */
+      height: 100%;
+      border-radius: 3px;
+      transition: width .4s ease; /* Smooth animation when value changes */
+    }
+    .fill-green { background: var(--green); } /* Under 70% of budget used */
+    .fill-amber { background: var(--amber); } /* 70–89% of budget used */
+    .fill-red   { background: var(--red);   } /* 90%+ of budget used */
+
+    /* ── CHART ──────────────────────────────────────── */
+    .chart-wrap { /* Container that gives the canvas a fixed height */
+      position: relative;
+      height: 200px;
     }
 
-    .tx-meta { /* The smaller grey text below: category and date */
+    /* ── TRANSACTION LIST ───────────────────────────── */
+    .tx-header { /* Row with title, Export and Clear buttons */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .tx-header .card-title { margin-bottom: 0; } /* Remove bottom margin when inside header row */
+
+    .clear-btn { /* "Clear Month" — outlined red button */
       font-size: 0.75rem;
-      color: #64748b;
+      padding: 0.3rem 0.75rem;
+      background: transparent;
+      color: var(--red);
+      border: 1px solid var(--red);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .clear-btn:hover { background: var(--red); color: #fff; } /* Fills red on hover */
+
+    .tx-filters { /* Row of All / Income / Expenses filter pill buttons */
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .filter-btn { /* Each individual filter pill button */
+      padding: 0.3rem 0.875rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 20px; /* Pill shape */
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      width: auto; /* Shrinks to fit text — overrides global button width:100% */
+    }
+    .filter-btn.active { /* Currently selected filter highlighted in blue */
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+
+    .tx-list { /* Scrollable container holding all transaction rows */
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 420px; /* Fixed height — scrolls when many transactions exist */
+      overflow-y: auto;
+    }
+    .tx-list::-webkit-scrollbar { width: 4px; } /* Thin scrollbar */
+    .tx-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .tx-row { /* Each individual transaction row card */
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      animation: slideIn .18s ease; /* Entrance animation plays when row appears */
+    }
+    @keyframes slideIn { /* The slide-in animation definition */
+      from { opacity: 0; transform: translateY(-6px); } /* Starts invisible, 6px above */
+      to   { opacity: 1; transform: translateY(0); }    /* Fades into normal position */
+    }
+
+    .tx-icon { /* The emoji icon square on the left of each row */
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0; /* Prevents icon shrinking if description text is long */
+    }
+    .tx-icon.income  { background: #052e16; } /* Dark green background for income */
+    .tx-icon.expense { background: #2d0a0a; } /* Dark red background for expense */
+
+    .tx-info { /* Middle section: description and category/date metadata */
+      flex: 1;       /* Takes all remaining horizontal space */
+      min-width: 0;  /* Required for text-overflow: ellipsis to work */
+    }
+    .tx-desc { /* The description text e.g. "Grab to work" */
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;      /* Prevents text wrapping to next line */
+      overflow: hidden;         /* Hides text that doesn't fit */
+      text-overflow: ellipsis;  /* Adds "..." when text is too long */
+    }
+    .tx-meta { /* Smaller grey text: category name and date */
+      font-size: 0.72rem;
+      color: var(--muted);
       margin-top: 1px;
     }
 
-    .tx-amount { /* The SGD amount on the right */
-      font-size: 1rem;
-      font-weight: 700;
+    .tx-right { /* Right side of each row: amount and delete button */
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0; /* Prevents right side from shrinking */
     }
+    .tx-amount { font-size: 0.95rem; font-weight: 700; }
+    .tx-amount.income  { color: var(--green); } /* Green for income amounts */
+    .tx-amount.expense { color: var(--red);   } /* Red for expense amounts */
 
-    .tx-amount.income  { color: #4ade80; } /* Green for income amounts */
-    .tx-amount.expense { color: #f87171; } /* Red for expense amounts */
-
-    .delete-btn { /* The small X button to delete a transaction */
-      width: 28px; height: 28px;
+    .del-btn { /* The small X delete button on each row */
       background: transparent;
-      color: #475569;    /* Grey X by default */
       border: none;
-      font-size: 1rem;
+      color: var(--muted);
       cursor: pointer;
-      border-radius: 6px;
-      margin-left: 0.5rem;
-      padding: 0;
+      width: auto;
+      font-size: 0.9rem;
       display: flex; align-items: center; justify-content: center;
-      transition: color 0.15s, background 0.15s;
+      padding: 0;
+      transition: color .15s;
+    }
+    .del-btn:hover { color: var(--red); } /* Turns red on hover */
+
+    .empty { /* Shown when no transactions match the current filter */
+      text-align: center;
+      color: var(--muted);
+      padding: 2.5rem 0;
+      font-size: 0.875rem;
     }
 
-    .delete-btn:hover { color: #f87171; background: #1e293b; } /* Turns red on hover */
+    /* ── SAVINGS RATE BADGE ──────────────────────────── */
+    .savings-badge { /* Small coloured pill shown below the savings % */
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      margin-top: 0.4rem;
+    }
+    .savings-good { background: #052e16; color: var(--green); } /* >= 20% savings */
+    .savings-ok   { background: #3b2200; color: var(--amber); } /* 1–19% savings */
+    .savings-bad  { background: #2d0a0a; color: var(--red);   } /* 0% or negative */
+
+    /* ── EXPORT BUTTON ───────────────────────────────── */
+    .export-btn { /* "Export CSV" — outlined blue button */
+      font-size: 0.78rem;
+      padding: 0.35rem 0.875rem;
+      background: transparent;
+      color: var(--blue);
+      border: 1px solid var(--blue);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .2s;
+      width: auto;
+    }
+    .export-btn:hover { background: var(--blue); color: #fff; }
 
   </style>
 </head>
-
 <body>
-<div class="app"> <!-- Main wrapper — everything lives inside here -->
+<div class="container"> <!-- Centres all content, max 960px wide -->
 
-  <h1>💸 Rishabh's Budget Tracker</h1> <!-- Page title -->
-  <p class="subtitle">Track your income and expenses in one place</p> <!-- Subtitle below title -->
-
-  <!-- SUMMARY CARDS — the 3 stat boxes at the top -->
-  <div class="summary">
-    <div class="card total">
-      <div class="label">Balance</div> <!-- Card label text -->
-      <div class="value" id="balance">SGD 0.00</div> <!-- id="balance" lets JavaScript update this number -->
+  <!-- HEADER: Title on left, month navigator on right -->
+  <div class="header">
+    <div>
+      <h1>💼 Rishabh's Budget Tracker</h1>
+      <p>Personal finance dashboard · Singapore</p>
     </div>
-    <div class="card income">
-      <div class="label">Income</div>
-      <div class="value" id="total-income">SGD 0.00</div> <!-- JavaScript writes the income total here -->
-    </div>
-    <div class="card expense">
-      <div class="label">Expenses</div>
-      <div class="value" id="total-expense">SGD 0.00</div> <!-- JavaScript writes the expense total here -->
+    <!-- Clicking arrows calls changeMonth(-1) or changeMonth(1) in JavaScript -->
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">&#8249;</button> <!-- ‹ left arrow -->
+      <span id="month-label"></span> <!-- JavaScript writes "March 2026" here -->
+      <button onclick="changeMonth(1)">&#8250;</button>  <!-- › right arrow -->
     </div>
   </div>
 
-  <!-- INPUT FORM — where the user enters a new transaction -->
-  <div class="form-card">
-    <h2>Add Transaction</h2>
-
-    <div class="full-width">
-      <!-- Text input for what the transaction was e.g. "Bubble Tea" -->
-      <input type="text" id="desc" placeholder="Description (e.g. Bubble Tea, Grab, Salary)" />
+  <!-- TOP STAT CARDS: Balance, Income, Expenses, Savings Rate -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="s-label">Net Balance</div>
+      <div class="s-value c-blue" id="stat-balance">SGD 0</div> <!-- JS updates this -->
+      <div class="s-sub" id="stat-balance-sub">This month</div>
     </div>
-
-    <div class="form-grid">
-      <!-- Number input for how much — min=0 prevents negative values -->
-      <input type="number" id="amount" placeholder="Amount (SGD)" step="0.01" min="0" />
-      <!-- Dropdown to choose between Expense or Income -->
-      <select id="type">
-        <option value="expense">Expense</option>
-        <option value="income">Income</option>
-      </select>
+    <div class="stat-card">
+      <div class="s-label">Total Income</div>
+      <div class="s-value c-green" id="stat-income">SGD 0</div>
+      <div class="s-sub" id="stat-income-sub">0 transactions</div>
     </div>
-
-    <div class="form-grid">
-      <!-- Dropdown for the spending category — Singapore-specific -->
-      <select id="category">
-        <option value="🧋 Bubble Tea">🧋 Bubble Tea</option>
-        <option value="🚗 Grab / Transport">🚗 Grab / Transport</option>
-        <option value="🍜 Food">🍜 Food</option>
-        <option value="📚 Education">📚 Education</option>
-        <option value="🎮 Entertainment">🎮 Entertainment</option>
-        <option value="💼 Salary / Allowance">💼 Salary / Allowance</option>
-        <option value="🏠 Housing">🏠 Housing</option>
-        <option value="🛒 Shopping">🛒 Shopping</option>
-        <option value="💊 Health">💊 Health</option>
-        <option value="📦 Other">📦 Other</option>
-      </select>
-      <!-- Date picker — defaults to today via JavaScript below -->
-      <input type="date" id="date" />
+    <div class="stat-card">
+      <div class="s-label">Total Expenses</div>
+      <div class="s-value c-red" id="stat-expense">SGD 0</div>
+      <div class="s-sub" id="stat-expense-sub">0 transactions</div>
     </div>
-
-    <!-- Clicking this button calls the addTransaction() JavaScript function -->
-    <button onclick="addTransaction()">+ Add Transaction</button>
+    <div class="stat-card">
+      <div class="s-label">Savings Rate</div>
+      <div class="s-value c-purple" id="stat-rate">0%</div>
+      <div id="stat-rate-badge"></div> <!-- JS injects the coloured badge here -->
+    </div>
   </div>
 
-  <!-- TRANSACTION LIST — all past transactions appear here -->
-  <div>
-    <div class="list-header">
-      <h2>Transactions</h2>
-      <!-- Clicking this calls clearAll() to wipe all transactions -->
-      <button class="clear-btn" onclick="clearAll()">Clear All</button>
-    </div>
-    <div id="list"></div> <!-- JavaScript fills this div with transaction rows -->
-  </div>
+  <!-- MAIN TWO-COLUMN GRID -->
+  <div class="main-grid">
 
-</div> <!-- end .app -->
+    <!-- LEFT COLUMN: Form + Transaction list -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem;">
 
-<script> /* Everything below is JavaScript — the logic that makes the app work */
+      <!-- ADD TRANSACTION FORM -->
+      <div class="card">
+        <div class="card-title">Add Transaction</div>
 
-  /* Load saved transactions from localStorage, or start with an empty array */
-  let transactions = JSON.parse(localStorage.getItem("transactions") || "[]");
+        <!-- Full-width description field -->
+        <div class="form-row full">
+          <input type="text" id="desc" placeholder="Description (e.g. Grab to work, Netflix, Salary)" />
+        </div>
 
-  /* Set the date input to today's date automatically when page loads */
-  document.getElementById("date").valueAsDate = new Date();
+        <!-- Amount and type (Income/Expense) side by side -->
+        <div class="form-row">
+          <input type="number" id="amount" placeholder="Amount (SGD)" step="0.01" min="0" />
+          <!-- onchange swaps the category dropdown when user switches between income/expense -->
+          <select id="type" onchange="updateCategoryOptions()">
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
 
-  /* render() redraws the entire screen whenever data changes */
-  function render() {
-    const list = document.getElementById("list"); /* Gets the div where transaction rows go */
+        <!-- Category and date side by side -->
+        <div class="form-row">
+          <select id="category"></select> <!-- Options filled by JavaScript on load -->
+          <input type="date" id="date" />
+        </div>
 
-    let income = 0, expense = 0; /* Start both totals at zero */
+        <!-- Clicking this calls addTransaction() in JavaScript -->
+        <button class="add-btn" onclick="addTransaction()">+ Add Transaction</button>
+      </div>
 
-    /* Loop through every transaction and add to the right total */
-    transactions.forEach(t => {
-      if (t.type === "income") income += t.amount; /* Add to income if it's an income */
-      else expense += t.amount;                    /* Otherwise add to expense */
-    });
-
-    const balance = income - expense; /* Balance = total income minus total expenses */
-
-    /* Update the 3 summary cards with the calculated numbers */
-    document.getElementById("balance").textContent = (balance < 0 ? "−" : "") + formatCurrency(balance);
-    document.getElementById("balance").style.color = balance >= 0 ? "#38bdf8" : "#f87171"; /* Blue if positive, red if negative */
-    document.getElementById("total-income").textContent  = formatCurrency(income);
-    document.getElementById("total-expense").textContent = formatCurrency(expense);
-
-    /* If no transactions exist, show the empty state message and stop */
-    if (transactions.length === 0) {
-      list.innerHTML = '<p class="empty-state">No transactions yet. Add one above!</p>';
-      return; /* Exits the function early — nothing else to render */
-    }
-
-    /* Build HTML for each transaction row and inject it into the list div */
-    list.innerHTML = [...transactions] /* Copy the array so we don't modify the original */
-      .reverse() /* Newest transactions appear at the top */
-      .map(t => ` <!-- For each transaction, build this HTML string -->
-        <div class="transaction">
-          <div class="tx-left">
-            <!-- Split category by space, take first part which is the emoji -->
-            <div class="tx-icon ${t.type}">${t.category.split(" ")[0]}</div>
-            <div>
-              <div class="tx-desc">${escapeHtml(t.desc)}</div> <!-- Description text -->
-              <div class="tx-meta">${t.category.slice(2)} · ${formatDate(t.date)}</div> <!-- Category name + date -->
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;">
-            <!-- Show + for income, − for expense before the amount -->
-            <span class="tx-amount ${t.type}">
-              ${t.type === "income" ? "+" : "−"}${formatCurrency(t.amount)}
-            </span>
-            <!-- Delete button passes this transaction's unique id to deleteTransaction() -->
-            <button class="delete-btn" onclick="deleteTransaction('${t.id}')" title="Delete">✕</button>
+      <!-- TRANSACTION LIST -->
+      <div class="card">
+        <div class="tx-header">
+          <div class="card-title">Transactions</div>
+          <div style="display:flex;gap:0.5rem;">
+            <button class="export-btn" onclick="exportCSV()">&#11015; Export CSV</button>
+            <button class="clear-btn" onclick="clearMonth()">Clear Month</button>
           </div>
         </div>
-      `).join(""); /* .join("") combines all the HTML strings into one big string */
+
+        <!-- Filter pills — clicking one calls setFilter() -->
+        <div class="tx-filters">
+          <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+          <button class="filter-btn" onclick="setFilter('income', this)">Income</button>
+          <button class="filter-btn" onclick="setFilter('expense', this)">Expenses</button>
+        </div>
+
+        <!-- JavaScript fills this div with transaction rows -->
+        <div class="tx-list" id="tx-list"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: Donut chart + Budget progress bars -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+      <!-- SPENDING BREAKDOWN DONUT CHART -->
+      <div class="card">
+        <div class="card-title">Spending Breakdown</div>
+        <div class="chart-wrap">
+          <canvas id="pie-chart"></canvas> <!-- Chart.js draws here -->
+        </div>
+        <div id="chart-legend" style="margin-top:0.875rem;display:flex;flex-direction:column;gap:0.35rem;"></div>
+        <!-- JavaScript injects the custom legend here -->
+      </div>
+
+      <!-- MONTHLY BUDGET LIMITS WITH PROGRESS BARS -->
+      <div class="card">
+        <div class="card-title">Monthly Budgets</div>
+        <div id="budget-list"></div> <!-- JavaScript fills this with progress bar rows -->
+      </div>
+
+    </div>
+  </div>
+
+</div> <!-- end .container -->
+
+<script>
+
+/* ── DATA AND STATE ──────────────────────────────────────────── */
+
+/* Load saved transactions from localStorage, or start with empty array */
+/* JSON.parse converts the saved text string back into a JavaScript array */
+let transactions = JSON.parse(localStorage.getItem('bgt-transactions') || '[]');
+
+/* Monthly budget limits per category in SGD */
+/* Edit these numbers to change your personal budget limits */
+let budgets = JSON.parse(localStorage.getItem('bgt-budgets') || JSON.stringify({
+  '🧋 Bubble Tea':       50,   /* Max SGD 50 on bubble tea per month */
+  '🚗 Grab / Transport': 150,  /* Max SGD 150 on transport per month */
+  '🍜 Food & Dining':    400,  /* Max SGD 400 on food per month */
+  '📚 Education':        200,
+  '🎮 Entertainment':    100,
+  '🏠 Housing / Rent':   1200,
+  '🛒 Shopping':         200,
+  '💊 Health':           100,
+  '✈️ Travel':           300,
+  '📦 Other':            150,
+}));
+
+/* viewDate tracks which month the user is currently viewing */
+let viewDate = new Date(); /* Starts as today */
+
+/* txFilter controls which transactions show: 'all', 'income', or 'expense' */
+let txFilter = 'all';
+
+/* Category lists — swapped in the dropdown based on income vs expense */
+const EXPENSE_CATS = [
+  '🧋 Bubble Tea', '🚗 Grab / Transport', '🍜 Food & Dining',
+  '📚 Education',  '🎮 Entertainment',    '🏠 Housing / Rent',
+  '🛒 Shopping',   '💊 Health',           '✈️ Travel', '📦 Other'
+];
+const INCOME_CATS = [
+  '💼 Salary / Allowance', '💰 Freelance', '🎁 Bonus',
+  '📈 Investment Returns',  '📦 Other Income'
+];
+
+/* Colours for each slice of the donut chart */
+const CHART_COLORS = [
+  '#3b82f6','#22c55e','#f59e0b','#ef4444',
+  '#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#64748b'
+];
+
+/* pieChart stores a reference to the Chart.js object */
+/* We need this so we can destroy and recreate it when data changes */
+let pieChart = null;
+
+/* ── INITIALISATION ──────────────────────────────────────────── */
+
+/* Set the date input to today when the page loads */
+document.getElementById('date').valueAsDate = new Date();
+
+/* Fill the category dropdown with expense categories (default type is expense) */
+updateCategoryOptions();
+
+/* Write the current month name into the header */
+updateMonthLabel();
+
+/* Draw the full UI for the first time */
+render();
+
+/* ── MONTH NAVIGATION ────────────────────────────────────────── */
+
+/* changeMonth() runs when < or > arrows are clicked */
+/* dir = -1 for previous month, +1 for next month */
+function changeMonth(dir) {
+  /* Create a new Date set to the 1st of the target month */
+  viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + dir, 1);
+  updateMonthLabel(); /* Update header text */
+  render();           /* Redraw everything for the new month */
+}
+
+/* updateMonthLabel() writes the month + year into the header span */
+function updateMonthLabel() {
+  document.getElementById('month-label').textContent =
+    viewDate.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
+}
+
+/* getMonthTx() filters transactions to only those in the viewed month */
+function getMonthTx() {
+  return transactions.filter(t => {
+    const d = new Date(t.date + 'T00:00:00'); /* Parse date string safely */
+    /* Keep only transactions where year AND month match the viewed month */
+    return d.getFullYear() === viewDate.getFullYear() &&
+           d.getMonth()    === viewDate.getMonth();
+  });
+}
+
+/* ── CATEGORY DROPDOWN ───────────────────────────────────────── */
+
+/* updateCategoryOptions() swaps the category list when type changes */
+function updateCategoryOptions() {
+  const type = document.getElementById('type').value; /* 'income' or 'expense' */
+  const sel  = document.getElementById('category');
+  const cats = type === 'expense' ? EXPENSE_CATS : INCOME_CATS;
+  /* Build <option> tags for each category and inject into the select element */
+  sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+/* ── FILTER ──────────────────────────────────────────────────── */
+
+/* setFilter() runs when All / Income / Expenses filter buttons are clicked */
+/* f = filter string ('all','income','expense'), btn = the clicked button element */
+function setFilter(f, btn) {
+  txFilter = f; /* Update global filter state */
+  /* Remove 'active' class from all filter buttons */
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); /* Add 'active' class to the clicked button */
+  render(); /* Redraw transaction list with the new filter */
+}
+
+/* ── ADD TRANSACTION ─────────────────────────────────────────── */
+
+/* addTransaction() runs when the user clicks the Add button */
+function addTransaction() {
+  /* Read all form values using their HTML id attributes */
+  const desc     = document.getElementById('desc').value.trim();        /* trim() removes extra spaces */
+  const amount   = parseFloat(document.getElementById('amount').value); /* Convert text to decimal number */
+  const type     = document.getElementById('type').value;               /* 'income' or 'expense' */
+  const category = document.getElementById('category').value;           /* Selected category string */
+  const date     = document.getElementById('date').value;               /* Date string e.g. "2026-03-31" */
+
+  /* Validate — stop with an alert if anything is wrong */
+  if (!desc)                  { alert('Please enter a description.'); return; }
+  if (!amount || amount <= 0) { alert('Please enter a valid amount.'); return; }
+  if (!date)                  { alert('Please select a date.'); return; }
+
+  /* Push a new transaction object onto the array */
+  transactions.push({
+    id: Date.now().toString(), /* Unique ID — current timestamp as string, always different */
+    desc, amount, type, category, date /* ES6 shorthand: desc is short for desc: desc */
+  });
+
+  save(); /* Save to localStorage and redraw */
+
+  /* Clear form inputs so user can add another transaction */
+  document.getElementById('desc').value   = '';
+  document.getElementById('amount').value = '';
+  document.getElementById('date').valueAsDate = new Date(); /* Reset to today */
+}
+
+/* ── DELETE TRANSACTION ──────────────────────────────────────── */
+
+/* deleteTransaction() runs when user clicks the X on a transaction row */
+function deleteTransaction(id) {
+  /* .filter() creates a NEW array keeping only items where id does NOT match */
+  /* This is the immutable update pattern — never modify the original array directly */
+  transactions = transactions.filter(t => t.id !== id);
+  save();
+}
+
+/* ── CLEAR MONTH ─────────────────────────────────────────────── */
+
+/* clearMonth() removes all transactions for the currently viewed month */
+function clearMonth() {
+  const label = viewDate.toLocaleDateString('en-SG', { month: 'long', year: 'numeric' });
+  if (!confirm(`Clear all transactions for ${label}?`)) return; /* Ask to confirm first */
+
+  const monthTx = getMonthTx();
+  const ids = new Set(monthTx.map(t => t.id)); /* Set = fast lookup — like a hash set */
+  transactions = transactions.filter(t => !ids.has(t.id)); /* Keep everything NOT in this month */
+  save();
+}
+
+/* ── EXPORT CSV ──────────────────────────────────────────────── */
+
+/* exportCSV() downloads the current month's data as a .csv file */
+/* The user can open this in Excel or Google Sheets */
+function exportCSV() {
+  const monthTx = getMonthTx();
+  if (monthTx.length === 0) { alert('No transactions to export this month.'); return; }
+
+  /* Build CSV string — first row is the header */
+  const header = 'Date,Description,Category,Type,Amount (SGD)';
+  const rows   = monthTx.map(t =>
+    `${t.date},"${t.desc}","${t.category}",${t.type},${t.amount.toFixed(2)}`
+  );
+  const csv = [header, ...rows].join('\n'); /* Join all rows with newline characters */
+
+  /* Create a downloadable Blob (file) from the CSV string */
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob); /* Create a temporary download URL */
+
+  /* Programmatically click a hidden link to trigger the file download */
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `budget-${viewDate.getFullYear()}-${viewDate.getMonth()+1}.csv`;
+  a.click();
+  URL.revokeObjectURL(url); /* Clean up temporary URL after download starts */
+}
+
+/* ── SAVE + RENDER ───────────────────────────────────────────── */
+
+/* save() writes data to localStorage then triggers a full re-render */
+function save() {
+  localStorage.setItem('bgt-transactions', JSON.stringify(transactions)); /* Array → text string */
+  render();
+}
+
+/* ── MAIN RENDER FUNCTION ────────────────────────────────────── */
+
+/* render() rebuilds the entire UI whenever data changes */
+/* Same mental model as React: state changes → re-render */
+function render() {
+  const monthTx = getMonthTx(); /* Only transactions for the viewed month */
+
+  /* Calculate totals */
+  let income = 0, expense = 0;
+  monthTx.forEach(t => {
+    if (t.type === 'income') income += t.amount;
+    else expense += t.amount;
+  });
+  const balance = income - expense;
+
+  /* Savings rate = % of income that was saved (avoid dividing by zero) */
+  const savingsRate = income > 0 ? Math.round(((income - expense) / income) * 100) : 0;
+
+  /* Update Net Balance card */
+  const balEl = document.getElementById('stat-balance');
+  balEl.textContent = (balance < 0 ? '−' : '') + fmtCurrency(balance); /* Add minus sign if negative */
+  balEl.className   = 's-value ' + (balance >= 0 ? 'c-blue' : 'c-red'); /* Blue if positive, red if negative */
+
+  /* Update Income and Expense stat cards */
+  document.getElementById('stat-income').textContent  = fmtCurrency(income);
+  document.getElementById('stat-expense').textContent = fmtCurrency(expense);
+  document.getElementById('stat-rate').textContent    = savingsRate + '%';
+
+  /* Count income and expense transactions for the sub-labels */
+  const incomeTx  = monthTx.filter(t => t.type === 'income');
+  const expenseTx = monthTx.filter(t => t.type === 'expense');
+  document.getElementById('stat-income-sub').textContent  =
+    incomeTx.length  + ' transaction' + (incomeTx.length  !== 1 ? 's' : ''); /* Pluralise */
+  document.getElementById('stat-expense-sub').textContent =
+    expenseTx.length + ' transaction' + (expenseTx.length !== 1 ? 's' : '');
+
+  /* Build and inject the savings health badge */
+  let badgeClass = 'savings-bad',  badgeText = '⚠ Spending more than earning';
+  if (savingsRate >= 20) { badgeClass = 'savings-good'; badgeText = '✓ Healthy savings rate'; }
+  else if (savingsRate > 0) { badgeClass = 'savings-ok'; badgeText = '~ Try to save more'; }
+  document.getElementById('stat-rate-badge').innerHTML =
+    `<span class="savings-badge ${badgeClass}">${badgeText}</span>`;
+
+  /* Delegate remaining rendering to specialised functions */
+  renderTransactions(monthTx); /* Rebuild the scrollable transaction list */
+  renderChart(expenseTx);      /* Rebuild the donut chart */
+  renderBudgets(expenseTx);    /* Rebuild the budget progress bars */
+}
+
+/* ── RENDER TRANSACTIONS ─────────────────────────────────────── */
+
+/* renderTransactions() rebuilds the scrollable list of transaction rows */
+function renderTransactions(monthTx) {
+  const list = document.getElementById('tx-list');
+
+  /* Apply the active filter */
+  let filtered = txFilter === 'all' ? monthTx
+    : monthTx.filter(t => t.type === txFilter);
+
+  /* Spread [...] to copy the array before reversing — never mutate the original */
+  filtered = [...filtered].reverse(); /* Newest transactions at the top */
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">No transactions found.<br>Add one above!</div>`;
+    return; /* Exit early — nothing else to render */
   }
 
-  /* addTransaction() runs when the user clicks the Add button */
-  function addTransaction() {
-    const desc     = document.getElementById("desc").value.trim();     /* Read description, remove extra spaces */
-    const amount   = parseFloat(document.getElementById("amount").value); /* Read amount as a decimal number */
-    const type     = document.getElementById("type").value;            /* Read "income" or "expense" */
-    const category = document.getElementById("category").value;        /* Read the selected category */
-    const date     = document.getElementById("date").value;            /* Read the selected date */
+  /* .map() converts each transaction object into an HTML string */
+  /* .join('') merges all strings into one big HTML block with no separator */
+  list.innerHTML = filtered.map(t => `
+    <div class="tx-row">
+      <!-- Split category by space, take first part which is the emoji -->
+      <div class="tx-icon ${t.type}">${t.category.split(' ')[0]}</div>
+      <div class="tx-info">
+        <div class="tx-desc">${escHtml(t.desc)}</div>
+        <!-- indexOf finds position of first space, slice removes the emoji -->
+        <div class="tx-meta">${t.category.slice(t.category.indexOf(' ')+1)} · ${fmtDate(t.date)}</div>
+      </div>
+      <div class="tx-right">
+        <span class="tx-amount ${t.type}">
+          ${t.type === 'income' ? '+' : '−'}${fmtCurrency(t.amount)}
+        </span>
+        <!-- Pass this transaction's unique ID to deleteTransaction() on click -->
+        <button class="del-btn" onclick="deleteTransaction('${t.id}')" title="Delete">&#x2715;</button>
+      </div>
+    </div>
+  `).join('');
+}
 
-    if (!desc)                  { alert("Please enter a description."); return; } /* Stop if description is empty */
-    if (!amount || amount <= 0) { alert("Please enter a valid amount."); return; } /* Stop if amount is invalid */
+/* ── RENDER DONUT CHART ──────────────────────────────────────── */
 
-    /* Build a transaction object and add it to the array */
-    transactions.push({
-      id: Date.now().toString(), /* Unique ID based on current timestamp — always different */
-      desc, amount, type, category, date /* Shorthand for desc: desc, amount: amount, etc. */
-    });
+/* renderChart() draws the spending breakdown donut chart using Chart.js */
+function renderChart(expenseTx) {
+  /* Group expenses by category name, summing amounts */
+  const catTotals = {};
+  expenseTx.forEach(t => {
+    const name = t.category.slice(t.category.indexOf(' ')+1); /* Category without emoji */
+    catTotals[name] = (catTotals[name] || 0) + t.amount;      /* Add to total or start at 0 */
+  });
 
-    save(); /* Save to localStorage and redraw the screen */
+  const labels = Object.keys(catTotals);   /* Array of category names */
+  const data   = Object.values(catTotals); /* Array of matching amounts */
 
-    /* Clear the form inputs so the user can add another transaction */
-    document.getElementById("desc").value   = "";
-    document.getElementById("amount").value = "";
-    document.getElementById("date").valueAsDate = new Date(); /* Reset date back to today */
+  /* Destroy old chart before creating a new one */
+  /* Required by Chart.js — drawing on a canvas that already has a chart throws an error */
+  if (pieChart) { pieChart.destroy(); pieChart = null; }
+
+  const canvas = document.getElementById('pie-chart');
+  const legend = document.getElementById('chart-legend');
+
+  if (labels.length === 0) {
+    canvas.style.display = 'none';
+    legend.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:0.82rem;padding:1rem 0;">No expenses this month</div>`;
+    return;
   }
 
-  /* deleteTransaction() runs when the user clicks the X on a transaction */
-  function deleteTransaction(id) {
-    /* .filter() creates a NEW array keeping only transactions that do NOT match the deleted id */
-    transactions = transactions.filter(t => t.id !== id);
-    save(); /* Save the updated array and redraw */
-  }
+  canvas.style.display = 'block';
 
-  /* clearAll() runs when the user clicks "Clear All" */
-  function clearAll() {
-    if (transactions.length === 0) return; /* Do nothing if already empty */
-    if (confirm("Clear all transactions?")) { /* Ask the user to confirm first */
-      transactions = []; /* Empty the array */
-      save();
+  /* Create a new Chart.js doughnut chart */
+  pieChart = new Chart(canvas, {
+    type: 'doughnut', /* Doughnut = pie with a hole in the middle */
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: CHART_COLORS.slice(0, labels.length), /* One colour per slice */
+        borderWidth: 2,
+        borderColor: '#111827', /* Gap colour between slices — matches card background */
+      }]
+    },
+    options: {
+      responsive: true,           /* Resizes with its container */
+      maintainAspectRatio: false, /* Uses our fixed 200px height */
+      cutout: '65%',              /* Size of centre hole — 65% makes a thin ring */
+      plugins: {
+        legend: { display: false }, /* Hide default legend — we draw a custom one */
+        tooltip: {
+          callbacks: {
+            /* Custom tooltip showing SGD amount and percentage */
+            label: ctx => ` SGD ${ctx.parsed.toFixed(2)} (${Math.round(ctx.parsed / data.reduce((a,b)=>a+b,0) * 100)}%)`
+          }
+        }
+      }
     }
-  }
+  });
 
-  /* save() writes to localStorage and triggers a re-render */
-  function save() {
-    localStorage.setItem("transactions", JSON.stringify(transactions)); /* Convert array to text and save */
-    render(); /* Redraw the screen with updated data */
-  }
+  /* Build custom legend below the chart */
+  const total = data.reduce((a,b) => a+b, 0); /* Sum all expenses for % calculation */
+  legend.innerHTML = labels.map((l, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;">
+      <div style="display:flex;align-items:center;gap:0.4rem;">
+        <!-- Coloured dot matching the chart slice colour -->
+        <span style="width:9px;height:9px;border-radius:50%;background:${CHART_COLORS[i]};display:inline-block;flex-shrink:0;"></span>
+        <span style="color:var(--muted);">${l}</span>
+      </div>
+      <span style="font-weight:600;">${Math.round(data[i]/total*100)}%</span>
+    </div>
+  `).join('');
+}
 
-  /* formatCurrency() turns a number like 1234.5 into "SGD 1,234.50" */
-  function formatCurrency(n) {
-    return "SGD " + Math.abs(n)   /* Math.abs removes any minus sign — we handle +/− separately */
-      .toFixed(2)                 /* Always show 2 decimal places e.g. 5 becomes 5.00 */
-      .replace(/\B(?=(\d{3})+(?!\d))/g, ","); /* Regex that inserts commas every 3 digits */
-  }
+/* ── RENDER BUDGET PROGRESS BARS ─────────────────────────────── */
 
-  /* formatDate() turns "2026-03-31" into "31 Mar 2026" */
-  function formatDate(dateStr) {
-    if (!dateStr) return ""; /* Return empty string if no date was provided */
-    const d = new Date(dateStr + "T00:00:00"); /* Create a Date object — T00:00:00 prevents timezone issues */
-    return d.toLocaleDateString("en-SG", { /* Format using Singapore locale */
-      month: "short", day: "numeric", year: "numeric"
-    });
-  }
+/* renderBudgets() builds the progress bar row for each expense category */
+function renderBudgets(expenseTx) {
+  /* Sum how much was spent per category this month */
+  const spent = {};
+  expenseTx.forEach(t => {
+    spent[t.category] = (spent[t.category] || 0) + t.amount;
+  });
 
-  /* escapeHtml() prevents malicious code from being injected via the description field */
-  function escapeHtml(str) {
-    return str
-      .replace(/&/g, "&amp;")  /* & becomes &amp; */
-      .replace(/</g, "&lt;")   /* < becomes &lt; so it doesn't start an HTML tag */
-      .replace(/>/g, "&gt;");  /* > becomes &gt; */
-  }
+  const container = document.getElementById('budget-list');
 
-  render(); /* Run render() once when the page first loads to show any saved transactions */
+  container.innerHTML = EXPENSE_CATS.map(cat => {
+    const limit = budgets[cat] || 0; /* Monthly budget limit for this category */
+    const used  = spent[cat]  || 0; /* Amount spent — 0 if nothing spent yet */
+
+    /* Percentage of budget used — capped at 100 so bar doesn't overflow */
+    const pct = Math.min(Math.round((used / limit) * 100), 100);
+
+    /* Choose fill colour based on how full the budget is */
+    const fillCls = pct >= 90 ? 'fill-red' : pct >= 70 ? 'fill-amber' : 'fill-green';
+
+    const emoji = cat.split(' ')[0];             /* Just the emoji character */
+    const name  = cat.slice(cat.indexOf(' ')+1); /* Just the category name text */
+
+    return `
+      <div class="budget-item">
+        <div class="budget-row">
+          <div class="budget-name">${emoji} <span style="color:var(--text);">${name}</span></div>
+          <div class="budget-amounts">
+            <!-- Amount spent coloured red/amber/green by how close to limit -->
+            <span style="color:${pct>=90?'var(--red)':pct>=70?'var(--amber)':'var(--green)'}">SGD ${used.toFixed(0)}</span>
+            <span style="color:var(--muted);"> / ${limit}</span>
+          </div>
+        </div>
+        <!-- progress-fill width is set as a CSS percentage — JS calculates pct -->
+        <div class="progress-bar">
+          <div class="progress-fill ${fillCls}" style="width:${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ── HELPER FUNCTIONS ────────────────────────────────────────── */
+
+/* fmtCurrency() turns a number like 1234.5 into "SGD 1,234.50" */
+function fmtCurrency(n) {
+  return 'SGD ' + Math.abs(n)   /* Math.abs removes minus sign — we add it manually */
+    .toFixed(2)                 /* Always 2 decimal places e.g. 5 becomes 5.00 */
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ','); /* Regex inserts commas every 3 digits */
+}
+
+/* fmtDate() turns "2026-03-31" into "31 Mar 2026" */
+function fmtDate(dateStr) {
+  if (!dateStr) return ''; /* Return empty string if date is missing */
+  const d = new Date(dateStr + 'T00:00:00'); /* T00:00:00 prevents timezone shift bugs */
+  return d.toLocaleDateString('en-SG', {     /* Singapore locale date format */
+    day: 'numeric', month: 'short', year: 'numeric'
+  });
+}
+
+/* escHtml() prevents XSS injection via the description field */
+/* If someone types <script>alert('hack')</script>, this makes it safe text */
+function escHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')  /* & becomes &amp; */
+    .replace(/</g, '&lt;')   /* < becomes &lt; — prevents opening HTML tags */
+    .replace(/>/g, '&gt;');  /* > becomes &gt; — prevents closing HTML tags */
+}
 
 </script>
 </body>
