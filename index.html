@@ -157,11 +157,13 @@
       grid-template-columns: 1fr 1fr; /* Two equal columns */
       gap: 0.65rem;
       margin-bottom: 0.65rem;
+      min-width: 0;
     }
-    .form-row.full { grid-template-columns: 1fr; } /* Override: single full-width column */
+    .form-row.full { grid-template-columns: 1fr; overflow: hidden; } /* Override: single full-width column */
 
     input, select { /* Styles all input boxes and dropdowns */
       width: 100%;
+      min-width: 0;
       padding: 0.6rem 0.875rem;
       border-radius: 8px;
       border: 1px solid var(--border);
